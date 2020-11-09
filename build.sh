@@ -1,4 +1,6 @@
 #!/bin/bash
 set -e
-go build -o git-mirror
-upx git-mirror
+env GOOS=linux GOARCH=amd64 go build -o git-mirror-linux
+upx git-mirror-linux
+env GOOS=darwin GOARCH=amd64 go build -o git-mirror-macOS
+upx git-mirror-macOS
