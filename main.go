@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"log"
 	"net/url"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/git"
+	"github.com/microsoft/azure-devops-go-api/azuredevops/wiki"
 )
 
 type stats struct {
@@ -25,6 +27,9 @@ func main() {
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
+	downloadWiki := flag.Bool("wiki", false, "download project wikis")
+	flag.Parse()
+
 	organizationURL := os.Getenv("ORGANIZATION_URL")
 	personalAccessToken := os.Getenv("PAT")
 	downloadPath := os.Getenv("DOWNLOAD_PATH")
@@ -32,30 +37,53 @@ func main() {
 		downloadPath = "."
 	}
 
-	existingRepos := findGitFolders(downloadPath)
+	repoPath := filepath.Join(downloadPath, "repos")
+	existingRepos := findGitFolders(repoPath)
 	log.Println("Repos already on disk", len(existingRepos))
 
 	connection := azuredevops.NewPatConnection(organizationURL, personalAccessToken)
 	ctx := context.Background()
 
 	gitClient, err := git.NewClient(ctx, connection)
-	response, err := gitClient.GetRepositories(ctx, git.GetRepositoriesArgs{})
+	repoResponse, err := gitClient.GetRepositories(ctx, git.GetRepositoriesArgs{})
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	s := stats{}
-	for _, repo := range *response {
-		log.Println("Cloning", *repo.Name, "...")
-		outPath := filepath.Join(downloadPath, *repo.Project.Name, *repo.Name)
-		existingRepos = remove(existingRepos, *repo.Project.Name+"/"+*repo.Name)
-
-		// Replace user with PAT
-		u, err := url.Parse(*repo.RemoteUrl)
+	if *downloadWiki {
+		wikiClient, err := wiki.NewClient(ctx, connection)
+		if err != nil {
+			log.Fatal(err)
+		}
+		wikiResponse, err := wikiClient.GetAllWikis(ctx, wiki.GetAllWikisArgs{})
 		if err != nil {
 			log.Fatal(err)
 		}
 
+		for _, w := range *wikiResponse {
+			if *w.Type == "projectWiki" {
+				log.Println("Found Wiki", *w.Name)
+				s := (*w.RepositoryId).String()
+				resp, err := gitClient.GetRepository(ctx, git.GetRepositoryArgs{RepositoryId: &s})
+				if err != nil {
+					log.Fatal(err)
+				}
+				*repoResponse = append(*repoResponse, *resp)
+			}
+		}
+	}
+
+	s := stats{}
+	for _, repo := range *repoResponse {
+		log.Println("Cloning", *repo.Name, "...")
+		outPath := filepath.Join(repoPath, *repo.Project.Name, *repo.Name)
+		existingRepos = remove(existingRepos, *repo.Project.Name+"/"+*repo.Name)
+
+		u, err := url.Parse(*repo.RemoteUrl)
+		if err != nil {
+			log.Fatal(err)
+		}
+		// Replace the username in the HTTPS git URL with the PAT token.
 		url := strings.Replace(*repo.RemoteUrl, u.User.Username(), personalAccessToken, 1)
 		cmd := exec.Command("git", "clone", url, outPath)
 		err = cmd.Run()
@@ -90,7 +118,7 @@ func main() {
 
 	foldersToArchive := existingRepos
 	for _, f := range foldersToArchive {
-		oldLocation := filepath.Join(downloadPath, f)
+		oldLocation := filepath.Join(repoPath, f)
 		newLocation := filepath.Join(downloadPath, "archive", f)
 		parentFolder := filepath.Dir(newLocation)
 		os.MkdirAll(parentFolder, os.ModePerm)
@@ -104,20 +132,20 @@ func main() {
 
 }
 
-func findGitFolders(downloadPath string) []string {
+func findGitFolders(ppp string) []string {
 	gitRepos := make([]string, 0, 45)
-	err := filepath.Walk(downloadPath,
+	err := filepath.Walk(ppp,
 		func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
-			if strings.HasPrefix(path, downloadPath+"/archive") {
+			if strings.HasPrefix(path, ppp+"/archive") {
 				return filepath.SkipDir
 			}
 
 			if strings.HasSuffix(path, "/.git") {
 				parent := filepath.Dir(path)
-				folder := strings.Replace(parent, downloadPath+"/", "", 1)
+				folder := strings.Replace(parent, ppp+"/", "", 1)
 				gitRepos = append(gitRepos, folder)
 				return filepath.SkipDir
 			}
