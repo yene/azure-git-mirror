@@ -26,7 +26,7 @@ jobs:
     - name: Go Version
       run: go version
     - name: Build Linux
-      run: env GOOS=linux GOARCH=amd64 go build -ldflags "-X main.BuildVersion=$INPUT_VERSION -X main.GitCommit=$GITHUB_SHA" -o ${NAME}-linux
+      run: env GOOS=linux GOARCH=amd64 go build -ldflags "-X main.buildVersion=$INPUT_VERSION -X main.gitCommit=$GITHUB_SHA" -o ${NAME}-linux
     - name: UPX Linux
       uses: crazy-max/ghaction-upx@v1.3.3
       with:
@@ -34,21 +34,21 @@ jobs:
 
     - name: Build Linux Arm
       # GOARM=6 (Raspberry Pi A, A+, B, B+, Zero) GOARM=7 (Raspberry Pi 2, 3)
-      run: env GOARM=6 GOOS=linux GOARCH=arm go build -ldflags "-X main.BuildVersion=$INPUT_VERSION -X main.GitCommit=$GITHUB_SHA" -o ${NAME}-linux-arm
+      run: env GOARM=6 GOOS=linux GOARCH=arm go build -ldflags "-X main.buildVersion=$INPUT_VERSION -X main.gitCommit=$GITHUB_SHA" -o ${NAME}-linux-arm
     - name: UPX Linux Arm
       uses: crazy-max/ghaction-upx@v1.3.3
       with:
         file: ${{env.NAME}}-linux-arm
 
     - name: Build macOS
-      run: env GOOS=darwin GOARCH=amd64 go build -ldflags "-X main.BuildVersion=$INPUT_VERSION -X main.GitCommit=$GITHUB_SHA" -o ${NAME}-macos
+      run: env GOOS=darwin GOARCH=amd64 go build -ldflags "-X main.buildVersion=$INPUT_VERSION -X main.gitCommit=$GITHUB_SHA" -o ${NAME}-macos
     - name: UPX macOS
       uses: crazy-max/ghaction-upx@v1.3.3
       with:
         file: ${{ env.NAME }}-macos
 
     - name: Build Windows
-      run: env GOOS=windows GOARCH=amd64 go build -ldflags "-X main.BuildVersion=$INPUT_VERSION -X main.GitCommit=$GITHUB_SHA" -o ${NAME}-windows.exe
+      run: env GOOS=windows GOARCH=amd64 go build -ldflags "-X main.buildVersion=$INPUT_VERSION -X main.gitCommit=$GITHUB_SHA" -o ${NAME}-windows.exe
     - name: UPX Windows
       uses: crazy-max/ghaction-upx@v1.3.3
       with:
