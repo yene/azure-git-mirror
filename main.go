@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"net/url"
 	"os"
@@ -22,6 +23,9 @@ type stats struct {
 	empty  int
 }
 
+var gitCommit string    // Git sha, set by pipeline
+var buildVersion string // human readable version number, set by pipeline
+
 func main() {
 	err := godotenv.Load()
 	if err != nil {
@@ -30,11 +34,20 @@ func main() {
 	downloadWiki := flag.Bool("wiki", false, "download project wikis")
 	flag.Parse()
 
+	if len(flag.Args()) >= 1 && flag.Args()[0] == "version" {
+		fmt.Println(buildVersion, gitCommit)
+		os.Exit(0)
+	}
+
 	organizationURL := os.Getenv("ORGANIZATION_URL")
 	personalAccessToken := os.Getenv("PAT")
 	downloadPath := os.Getenv("DOWNLOAD_PATH")
 	if downloadPath == "" {
 		downloadPath = "."
+	}
+
+	if _, err := os.Stat(downloadPath); os.IsNotExist(err) {
+		log.Fatal("Given DOWNLOAD_PATH does not exist")
 	}
 
 	repoPath := filepath.Join(downloadPath, "repos")
