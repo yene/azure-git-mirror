@@ -12,9 +12,9 @@ import (
 	"strings"
 
 	"github.com/joho/godotenv"
-	"github.com/microsoft/azure-devops-go-api/azuredevops"
-	"github.com/microsoft/azure-devops-go-api/azuredevops/git"
-	"github.com/microsoft/azure-devops-go-api/azuredevops/wiki"
+	"github.com/microsoft/azure-devops-go-api/azuredevops/v6"
+	"github.com/microsoft/azure-devops-go-api/azuredevops/v6/git"
+	"github.com/microsoft/azure-devops-go-api/azuredevops/v6/wiki"
 )
 
 type stats struct {
@@ -58,6 +58,9 @@ func main() {
 	ctx := context.Background()
 
 	gitClient, err := git.NewClient(ctx, connection)
+	if err != nil {
+		log.Fatal(err)
+	}
 	repoResponse, err := gitClient.GetRepositories(ctx, git.GetRepositoriesArgs{})
 	if err != nil {
 		log.Fatal(err)
